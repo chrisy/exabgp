@@ -30,8 +30,7 @@ def preexec_helper ():
 
 class Processes (object):
 	# how many time can a process can respawn in the time interval
-	respawn_number = 5
-	respawn_timemask = 0xFFFFFF - pow(2,6) + 1  # '0b111111111111111111000000' (around a minute, 63 seconds)
+	respawn_interval = 5.0
 
 	def __init__ (self,reactor):
 		self.logger = Logger()
@@ -45,7 +44,7 @@ class Processes (object):
 		self._api_encoder = {}
 		self._neighbor_process = {}
 		self._broken = []
-		self._respawning = {}
+		self._ts = {}
 
 	def _terminate (self,process):
 		self.logger.processes("Terminating process %s" % process)
@@ -80,6 +79,11 @@ class Processes (object):
 				self.logger.processes("Can not start process, no configuration for it (anymore ?)")
 				return
 
+			# Is it time to spawn?
+			if process in self._ts and self._ts[process] + self.respawn_interval > time.time():
+				# Not yet
+				return
+
 			# Prevent some weird termcap data to be created at the start of the PIPE
 			# \x1b[?1034h (no-eol) (esc)
 			os.environ['TERM']='dumb'
@@ -89,6 +93,7 @@ class Processes (object):
 				api = self.reactor.configuration.process[process]['encoder']
 				self._api_encoder[process] = JSON('3.3.0') if api == 'json' else Text('3.3.0')
 
+				self._ts[process] = time.time()
 				self._process[process] = subprocess.Popen(run,
 					stdin=subprocess.PIPE,
 					stdout=subprocess.PIPE,
@@ -100,21 +105,6 @@ class Processes (object):
 
 				self.logger.processes("Forked process %s" % process)
 
-				around_now = int(time.time()) & self.respawn_timemask
-				if process in self._respawning:
-					if around_now in self._respawning[process]:
-						self._respawning[process][around_now] += 1
-						# we are respawning too fast
-						if self._respawning[process][around_now] > self.respawn_number:
-							self.logger.processes("Too many respawn for %s (%d) terminating program" % (process,self.respawn_number),'critical')
-							raise ProcessError()
-					else:
-						# reset long time since last respawn
-						self._respawning[process] = {around_now: 1}
-				else:
-					# record respawing
-					self._respawning[process] = {around_now: 1}
-
 			neighbor = self.reactor.configuration.process[process]['neighbor']
 			self._neighbor_process.setdefault(neighbor,[]).append(process)
 		except (subprocess.CalledProcessError,OSError,ValueError),e:
@@ -124,9 +114,10 @@ class Processes (object):
 
 	def start (self,restart=False):
 		for process in self.reactor.configuration.process:
-			if restart:
-				self._terminate(process)
-			self._start(process)
+			if process not in self._process:
+				if restart:
+					self._terminate(process)
+				self._start(process)
 		for process in list(self._process):
 			if not process in self.reactor.configuration.process:
 				self._terminate(process)

@@ -142,6 +142,9 @@ class Reactor (object):
 						self._route_update = False
 						self.route_update()
 
+					# restart any dead processes
+					self.processes.start()
+
 					while self.schedule(self.processes.received()) or self._pending:
 						self._pending = list(self.run_pending(self._pending))
 
