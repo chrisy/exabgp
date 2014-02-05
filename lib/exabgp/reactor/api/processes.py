@@ -107,6 +107,7 @@ class Processes (object):
 
 			neighbor = self.reactor.configuration.process[process]['neighbor']
 			self._neighbor_process.setdefault(neighbor,[]).append(process)
+			self.write(process,self._api_encoder[process].greeting(process, neighbor))
 		except (subprocess.CalledProcessError,OSError,ValueError),e:
 			self._broken.append(process)
 			self.logger.processes("Could not start process %s" % process)
@@ -148,7 +149,7 @@ class Processes (object):
 						else:
 							self.logger.processes("The process died, trying to respawn it")
 							self._terminate(process)
-							self._start(process)
+							#self._start(process)
 					except IOError,e:
 						if e.errno == errno.EINTR:  # call interrupted
 							pass  # we most likely have data, we will try to read them a the next loop iteration
@@ -157,7 +158,7 @@ class Processes (object):
 			except (subprocess.CalledProcessError,OSError,ValueError):
 				self.logger.processes("Issue with the process, terminating it and restarting it")
 				self._terminate(process)
-				self._start(process)
+				#self._start(process)
 
 	def write (self,process,string):
 		while True:
@@ -166,9 +167,9 @@ class Processes (object):
 			except IOError,e:
 				self._broken.append(process)
 				if e.errno == errno.EPIPE:
-					self._broken.append(process)
+					#self._broken.append(process)
 					self.logger.processes("Issue while sending data to our helper program")
-					raise ProcessError()
+					#raise ProcessError()
 				else:
 					# Could it have been caused by a signal ? What to do.
 					self.logger.processes("Error received while SENDING data to helper program, retrying (%s)" % errstr(e))

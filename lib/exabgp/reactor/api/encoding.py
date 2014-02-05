@@ -30,6 +30,9 @@ class Text (object):
 	def __init__ (self,version):
 		self.version = version
 
+	def greeting (self,process,neighbor):
+		return "neighbor %s process %s\n" % (neighbor, process)
+
 	def up (self,neighbor):
 		return 'neighbor %s up\n' % neighbor
 
@@ -134,6 +137,9 @@ class JSON (object):
 
 	def _minimalkv (self,extra):
 		return ", ".join('"%s": %s' % (_,self._string(__)) for (_,__) in extra.iteritems() if __) + ' '
+
+	def greeting (self,process,neighbor):
+		return self._header(self._neighbor(neighbor,self._kv({'process':process})))
 
 	def up (self,neighbor):
 		return self._header(self._neighbor(neighbor,self._kv({'state':'up'})))
