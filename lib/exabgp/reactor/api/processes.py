@@ -50,6 +50,8 @@ class Processes (object):
 		self.logger.processes("Terminating process %s" % process)
 		self._process[process].terminate()
 		self._process[process].wait()
+		neighbor = self.reactor.configuration.process[process]['neighbor']
+		self._neighbor_process.setdefault(neighbor,[]).remove(process)
 		del self._process[process]
 
 	def terminate (self):
